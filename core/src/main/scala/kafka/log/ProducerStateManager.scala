@@ -517,6 +517,8 @@ class ProducerStateManager(val topicPartition: TopicPartition,
   /**
    * Acknowledge all transactions which have been completed before a given offset. This allows the LSO
    * to advance to the next unstable offset.
+   *
+   * 确认在给定偏移前已经完成的所有交易。这允许LSO前进到下一个不稳定偏移量。
    */
   def onHighWatermarkUpdated(highWatermark: Long): Unit = {
     removeUnreplicatedTransactions(highWatermark)

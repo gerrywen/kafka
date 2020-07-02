@@ -1606,6 +1606,7 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
     dynamicConfig.removeReconfigurable(reconfigurable)
   }
 
+  // 日志保留时间, millis小于0返回永久保留
   def logRetentionTimeMillis: Long = {
     val millisInMinute = 60L * 1000L
     val millisInHour = 60L * millisInMinute
@@ -1613,8 +1614,8 @@ class KafkaConfig(val props: java.util.Map[_, _], doLog: Boolean, dynamicConfigO
     val millis: java.lang.Long =
       Option(getLong(KafkaConfig.LogRetentionTimeMillisProp)).getOrElse(
         Option(getInt(KafkaConfig.LogRetentionTimeMinutesProp)) match {
-          case Some(mins) => millisInMinute * mins
-          case None => getInt(KafkaConfig.LogRetentionTimeHoursProp) * millisInHour
+          case Some(mins) => millisInMinute * mins // log.retention.ms 和 log.retention.minutes
+          case None => getInt(KafkaConfig.LogRetentionTimeHoursProp) * millisInHour // log.retention.hours
         })
 
     if (millis < 0) return -1

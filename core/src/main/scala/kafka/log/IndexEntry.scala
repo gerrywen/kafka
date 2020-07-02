@@ -29,6 +29,7 @@ sealed trait IndexEntry {
  * The mapping between a logical log offset and the physical position
  * in some log file of the beginning of the message set entry with the
  * given offset.
+ * Key 就是之前说的位移值，而 Value 就是物理磁盘位置值
  */
 case class OffsetPosition(offset: Long, position: Int) extends IndexEntry {
   override def indexKey = offset

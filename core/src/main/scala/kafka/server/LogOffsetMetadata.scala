@@ -24,6 +24,7 @@ object LogOffsetMetadata {
   val UnknownOffsetMetadata = LogOffsetMetadata(-1, 0, 0)
   val UnknownFilePosition = -1
 
+  // 排序：计算此偏移量与给定偏移量之间的消息数量
   class OffsetOrdering extends Ordering[LogOffsetMetadata] {
     override def compare(x: LogOffsetMetadata, y: LogOffsetMetadata): Int = {
       x.offsetDiff(y).toInt
@@ -37,12 +38,18 @@ object LogOffsetMetadata {
  *  1. the message offset
  *  2. the base message offset of the located segment
  *  3. the physical position on the located segment
+ *
+ * 1.messageOffset：消息位移值，这是最重要的信息。我们总说高水位值，其实指的就是这个变量的值。
+ * 2.segmentBaseOffset：保存该位移值所在日志段的起始位移。这里的 segmentBaseOffset，就是用来判断两条消息是否处于同一个日志段的。
+ * 3.relativePositionSegment：保存该位移值所在日志段的物理磁盘位置
+ *
  */
 case class LogOffsetMetadata(messageOffset: Long,
                              segmentBaseOffset: Long = Log.UnknownOffset,
                              relativePositionInSegment: Int = LogOffsetMetadata.UnknownFilePosition) {
 
   // check if this offset is already on an older segment compared with the given offset
+  // 与给定的偏移量相比，检查此偏移量是否已经位于较旧的段上
   def onOlderSegment(that: LogOffsetMetadata): Boolean = {
     if (messageOffsetOnly)
       throw new KafkaException(s"$this cannot compare its segment info with $that since it only has message offset info")
@@ -51,14 +58,17 @@ case class LogOffsetMetadata(messageOffset: Long,
   }
 
   // check if this offset is on the same segment with the given offset
+  // 这个方法就是用来判断给定的两个 LogOffsetMetadata 对象是否处于同一个日志段的
   def onSameSegment(that: LogOffsetMetadata): Boolean = {
     if (messageOffsetOnly)
       throw new KafkaException(s"$this cannot compare its segment info with $that since it only has message offset info")
 
+    // 判断方法很简单，就是比较两个 LogOffsetMetadata 对象的 segmentBaseOffset 值是否相等。
     this.segmentBaseOffset == that.segmentBaseOffset
   }
 
   // compute the number of messages between this offset to the given offset
+  // 计算此偏移量与给定偏移量之间的消息数量
   def offsetDiff(that: LogOffsetMetadata): Long = {
     this.messageOffset - that.messageOffset
   }
@@ -75,6 +85,7 @@ case class LogOffsetMetadata(messageOffset: Long,
   }
 
   // decide if the offset metadata only contains message offset info
+  // 确定偏移元数据是否只包含消息偏移量信息
   def messageOffsetOnly: Boolean = {
     segmentBaseOffset == Log.UnknownOffset && relativePositionInSegment == LogOffsetMetadata.UnknownFilePosition
   }

@@ -50,13 +50,16 @@ import org.apache.kafka.common.errors.InvalidOffsetException
  * storage format.
  */
 // Avoid shadowing mutable `file` in AbstractIndex
+// baseOffset 获取文件偏移量
 class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable: Boolean = true)
     extends AbstractIndex(_file, baseOffset, maxIndexSize, writable) {
   import OffsetIndex._
 
+  // 相对位移是一个整型（Integer），占用 4 个字节，物理文件位置也是一个整型，同样占用 4 个字节，因此总共是 8 个字节。
   override def entrySize = 8
 
   /* the last offset in the index */
+  // 索引中的最后偏移量
   private[this] var _lastOffset = lastEntry.offset
 
   debug(s"Loaded index file ${file.getAbsolutePath} with maxEntries = $maxEntries, " +
@@ -85,10 +88,15 @@ class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writabl
    *         If the target offset is smaller than the least entry in the index (or the index is empty),
    *         the pair (baseOffset, 0) is returned.
    */
+    // 该方法返回的，是不大于给定位移值 targetOffset 的最大位移值，以及对应的物理文件位置。
+    // 你大致可以把这个方法，理解为位移值的 FLOOR 函数。
   def lookup(targetOffset: Long): OffsetPosition = {
     maybeLock(lock) {
-      val idx = mmap.duplicate
+      val idx = mmap.duplicate // 使用私有变量复制出整个索引映射区
+      // largestLowerBoundSlotFor方法底层使用了改进版的二分查找算法寻找对应的槽
       val slot = largestLowerBoundSlotFor(idx, targetOffset, IndexSearchType.KEY)
+      // 如果没找到，返回一个空的位置，即物理文件位置从0开始，表示从头读日志文件
+      // 否则返回slot槽对应的索引项
       if(slot == -1)
         OffsetPosition(baseOffset, 0)
       else
@@ -112,10 +120,15 @@ class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writabl
     }
   }
 
+  // 计算相对位移值
+  // 逻辑变得更加简单了。每一个索引项都是<offset, position>对，
+  // 那么第n项的相对位移自然就是buffer的n*entrySize字节处开始的4个字节表示的整数值
   private def relativeOffset(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * entrySize)
 
+  // 物理磁盘位置信息的
   private def physical(buffer: ByteBuffer, n: Int): Int = buffer.getInt(n * entrySize + 4)
 
+  // 用于查找给定的索引项
   override protected def parseEntry(buffer: ByteBuffer, n: Int): OffsetPosition = {
     OffsetPosition(baseOffset + relativeOffset(buffer, n), physical(buffer, n))
   }
@@ -136,19 +149,31 @@ class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writabl
 
   /**
    * Append an entry for the given offset/location pair to the index. This entry must have a larger offset than all subsequent entries.
-   * @throws IndexOffsetOverflowException if the offset causes index offset to overflow
+   * @throws InvalidOffsetException if the offset causes index offset to overflow
+   */
+  /**
+   * 该方法最重要的两步，就是分别向 mmap 写入相对位移值和物理文件位置
+   * @param offset Long 型的位移值
+   * @param position Integer 型的物理文件位置
    */
   def append(offset: Long, position: Int): Unit = {
     inLock(lock) {
+      // 第1步：判断索引文件未写满
       require(!isFull, "Attempt to append to a full index (size = " + _entries + ").")
+      // 第2步：必须满足以下条件之一才允许写入索引项：
+      // 条件1：当前索引文件为空
+      // 条件2：要写入的位移大于当前所有已写入的索引项的位移——Kafka规定索引项中的位移值必须是单调增加的
       if (_entries == 0 || offset > _lastOffset) {
         trace(s"Adding index entry $offset => $position to ${file.getAbsolutePath}")
-        mmap.putInt(relativeOffset(offset))
-        mmap.putInt(position)
+        mmap.putInt(relativeOffset(offset))// 第3步A：向mmap中写入相对位移值
+        mmap.putInt(position)// 第3步B：向mmap中写入物理位置信息
+        // 第4步：更新其他元数据统计信息，如当前索引项计数器_entries和当前索引项最新位移值_lastOffset
         _entries += 1
         _lastOffset = offset
+        // 第5步：执行校验。写入的索引项格式必须符合要求，即索引项个数*单个索引项占用字节数 匹配当前文件物理大小，否则说明文件已损坏
         require(_entries * entrySize == mmap.position(), s"$entries entries but file position in index is ${mmap.position()}.")
       } else {
+        // 如果第2步中两个条件都不满足，不能执行写入索引项操作，抛出异常
         throw new InvalidOffsetException(s"Attempt to append an offset ($offset) to position $entries no larger than" +
           s" the last offset appended (${_lastOffset}) to ${file.getAbsolutePath}.")
       }
@@ -180,6 +205,8 @@ class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writabl
 
   /**
    * Truncates index to a known number of entries.
+   *
+   * 将索引截断为已知数目的项。
    */
   private def truncateToEntries(entries: Int): Unit = {
     inLock(lock) {
