@@ -61,6 +61,8 @@ object EndPoint {
 
 /**
  * Part of the broker definition - matching host/port pair to a protocol
+ *
+ * 代理定义的一部分 —— 将主机/端口对匹配到协议
  */
 case class EndPoint(host: String, port: Int, listenerName: ListenerName, securityProtocol: SecurityProtocol) {
   def connectionString: String = {

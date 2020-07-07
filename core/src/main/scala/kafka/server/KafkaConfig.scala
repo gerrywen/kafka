@@ -270,7 +270,7 @@ object KafkaConfig {
   }
 
   /** ********* Zookeeper Configuration ***********/
-  val ZkConnectProp = "zookeeper.connect"
+  val ZkConnectProp = "zookeeper.connect" // zookeeper host string
   val ZkSessionTimeoutMsProp = "zookeeper.session.timeout.ms"
   val ZkConnectionTimeoutMsProp = "zookeeper.connection.timeout.ms"
   val ZkSyncTimeMsProp = "zookeeper.sync.time.ms"
@@ -335,10 +335,16 @@ object KafkaConfig {
   /** ********* General Configuration ***********/
   val BrokerIdGenerationEnableProp = "broker.id.generation.enable"
   val MaxReservedBrokerIdProp = "reserved.broker.max.id"
+  // 服务器的broker id。如果未设置，将生成一个独一无二的broker id。
+  // 要避免zookeeper生成的broker id和用户配置的broker id冲突，从reserved.broker.max.id + 1开始生成。
   val BrokerIdProp = "broker.id"
+  // 服务器可以接收的消息的最大大小	int	1000012
   val MessageMaxBytesProp = "message.max.bytes"
+  // 服务器用于处理网络请求的线程数。	int	3
   val NumNetworkThreadsProp = "num.network.threads"
+  // 服务器用于执行网络请求的io线程数	int	8
   val NumIoThreadsProp = "num.io.threads"
+  // 用于各种后台处理任务的线程数 int	10
   val BackgroundThreadsProp = "background.threads"
   val NumReplicaAlterLogDirsThreadsProp = "num.replica.alter.log.dirs.threads"
   val QueuedMaxRequestsProp = "queued.max.requests"
@@ -348,10 +354,25 @@ object KafkaConfig {
   val AuthorizerClassNameProp = "authorizer.class.name"
   /** ********* Socket Server Configuration ***********/
   val PortProp = "port"
+  // 不赞成：当listeners没有设置才会使用。请改用listeners。如果设置，
+  // 它将只绑定到此地址。如果没有设置，它将绑定到所有接口
   val HostNameProp = "host.name"
+  // 监听列表 - 监听逗号分隔的URL列表和协议。指定hostname为0.0.0.0绑定到所有接口，将hostname留空则绑定到默认接口。
+  // 合法的listener列表是：
+  // PLAINTEXT://myhost:9092,TRACE://:9091
+  // PLAINTEXT://0.0.0.0:9092, TRACE://localhost:9093
   val ListenersProp = "listeners"
+  //过时的：当advertised.listeners或listeners没设置时候才使用。
+  // 请改用advertised.listeners。Hostname发布到Zookeeper供客户端使用。
+  // 在IaaS环境中，Broker可能需要绑定不同的接口。如果没有设置，将会使用host.name（如果配置了）。
+  // 否则将从java.net.InetAddress.getCanonicalHostName()获取。
   val AdvertisedHostNameProp: String = "advertised.host.name"
+  // 过时的：当advertised.listeners或listeners没有设置才使用。
+  // 请改用advertised.listeners。端口发布到Zookeeper供客户端使用，
+  // 在IaaS环境中，broker可能需要绑定到不同的端口。如果没有设置，将和broker绑定的同一个端口。
   val AdvertisedPortProp = "advertised.port"
+  // 发布到Zookeeper供客户端使用监听（如果不同）。在IaaS环境中，broker可能需要绑定不同的接口。
+  // 如果没设置，则使用listeners。
   val AdvertisedListenersProp = "advertised.listeners"
   val ListenerSecurityProtocolMapProp = "listener.security.protocol.map"
   val ControlPlaneListenerNameProp = "control.plane.listener.name"
@@ -367,20 +388,32 @@ object KafkaConfig {
   val RackProp = "broker.rack"
   /** ********* Log Configuration ***********/
   val NumPartitionsProp = "num.partitions"
+  // 保存日志数据的目录。如果未设置，则使用log.dir中的值	string	null
   val LogDirsProp = "log.dirs"
+  // 保存日志数据的目录 (补充log.dirs属性) string	/tmp/kafka-logs
   val LogDirProp = "log.dir"
+  // 单个日志文件的最大大小	int	1073741824
   val LogSegmentBytesProp = "log.segment.bytes"
 
+  // 新建一个日志段之前的最大事时间（以毫秒为单位）。如果未设置，则使用log.roll.hours的值。	long	null
   val LogRollTimeMillisProp = "log.roll.ms"
+  // 新建一个日志段的最大时间（以小时为单位），次于log.roll.ms属性。	int	168
   val LogRollTimeHoursProp = "log.roll.hours"
 
   val LogRollTimeJitterMillisProp = "log.roll.jitter.ms"
+  // 从logRollTimeMillis（以小时为单位）减去最大抖动，次于log.roll.jitter.ms属性。	int	0
   val LogRollTimeJitterHoursProp = "log.roll.jitter.hours"
 
+  // 删除日志文件之前保留的毫秒数（以毫秒为单位），
+  // 如果未设置，则使用log.retention.minutes的值。	long	null
   val LogRetentionTimeMillisProp = "log.retention.ms"
+  // 删除日志文件之前保留的分钟数（以分钟为单位）。次于log.retention.ms属性。
+  // 如果没设置，则使用log.retention.hours的值。	int	null
   val LogRetentionTimeMinutesProp = "log.retention.minutes"
+  // 删除日志文件保留的小时数（以小时为单位）。第三级是log.retention.ms属性	int	168
   val LogRetentionTimeHoursProp = "log.retention.hours"
 
+  // 删除日志之前的最大大小	long	-1
   val LogRetentionBytesProp = "log.retention.bytes"
   val LogCleanupIntervalMsProp = "log.retention.check.interval.ms"
   val LogCleanupPolicyProp = "log.cleanup.policy"
@@ -397,10 +430,16 @@ object KafkaConfig {
   val LogCleanerMaxCompactionLagMsProp = "log.cleaner.max.compaction.lag.ms"
   val LogIndexSizeMaxBytesProp = "log.index.size.max.bytes"
   val LogIndexIntervalBytesProp = "log.index.interval.bytes"
+  // 消息刷新到磁盘之前，累计在日志分区的消息数	long	9223372036854775807
   val LogFlushIntervalMessagesProp = "log.flush.interval.messages"
+  // 从文件系统中删除文件之前的等待的时间	long	60000
   val LogDeleteDelayMsProp = "log.segment.delete.delay.ms"
+  // 日志刷新的频率（以毫秒为单位）检查是否有任何日志需要刷新到磁盘	long	9223372036854775807
   val LogFlushSchedulerIntervalMsProp = "log.flush.scheduler.interval.ms"
+  // topic中的消息在刷新到磁盘之前保存在内存中的最大时间（以毫秒为单位），
+  // 如果未设置，则使用log.flush.scheduler.interval.ms中的值	null
   val LogFlushIntervalMsProp = "log.flush.interval.ms"
+  // 我们更新的持续记录的最后一次刷新的频率。作为日志的恢复点。 int	60000
   val LogFlushOffsetCheckpointIntervalMsProp = "log.flush.offset.checkpoint.interval.ms"
   val LogFlushStartOffsetCheckpointIntervalMsProp = "log.flush.start.offset.checkpoint.interval.ms"
   val LogPreAllocateProp = "log.preallocate"
@@ -408,8 +447,15 @@ object KafkaConfig {
   val LogMessageTimestampTypeProp = LogConfigPrefix + "message.timestamp.type"
   val LogMessageTimestampDifferenceMaxMsProp = LogConfigPrefix + "message.timestamp.difference.max.ms"
   val LogMaxIdMapSnapshotsProp = LogConfigPrefix + "max.id.map.snapshots"
+  // 每个数据的目录线程数，用于启动时日志恢复和关闭时flush。	int	1
   val NumRecoveryThreadsPerDataDirProp = "num.recovery.threads.per.data.dir"
+  // 启用自动创建topic boolean	true
   val AutoCreateTopicsEnableProp = "auto.create.topics.enable"
+  //当producer设置acks为"all"（或"-1"）时。min.insync.replicas指定必须应答成功写入的replicas最小数。
+  // 如果不能满足最小值，那么producer抛出一个异常（NotEnoughReplicas或NotEnoughReplicasAfterAppend）。
+  // 当一起使用时，min.insync.replicas和acks提供最大的耐用性保证。
+  // 一个典型的场景是创建一个复制因子3的topic，设置min.insync.replicas为2，并且ack是“all”。
+  // 如果多数副本没有接到写入时，将会抛出一个异常。	int	1
   val MinInSyncReplicasProp = "min.insync.replicas"
   val CreateTopicPolicyClassNameProp = "create.topic.policy.class.name"
   val AlterConfigPolicyClassNameProp = "alter.config.policy.class.name"
@@ -425,13 +471,18 @@ object KafkaConfig {
   val ReplicaFetchMinBytesProp = "replica.fetch.min.bytes"
   val ReplicaFetchResponseMaxBytesProp = "replica.fetch.response.max.bytes"
   val ReplicaFetchBackoffMsProp = "replica.fetch.backoff.ms"
+  // 从源broker复制消息的提取线程数。递增该值可提高follower broker的I/O的并发。	int	1
   val NumReplicaFetchersProp = "num.replica.fetchers"
   val ReplicaHighWatermarkCheckpointIntervalMsProp = "replica.high.watermark.checkpoint.interval.ms"
   val FetchPurgatoryPurgeIntervalRequestsProp = "fetch.purgatory.purge.interval.requests"
   val ProducerPurgatoryPurgeIntervalRequestsProp = "producer.purgatory.purge.interval.requests"
   val DeleteRecordsPurgatoryPurgeIntervalRequestsProp = "delete.records.purgatory.purge.interval.requests"
+  // 启用自动平衡leader。如果需要，后台线程会定期检查并触发leader平衡。boolean	true
   val AutoLeaderRebalanceEnableProp = "auto.leader.rebalance.enable"
+  // 允许每个broker的leader比例不平衡。如果每个broker的值高于此值，
+  // 控制器将触发leader平衡，该值以百分比的形式指定。	int	10
   val LeaderImbalancePerBrokerPercentageProp = "leader.imbalance.per.broker.percentage"
+  // 由控制器触发分区再平衡检查的频率	long	300
   val LeaderImbalanceCheckIntervalSecondsProp = "leader.imbalance.check.interval.seconds"
   val UncleanLeaderElectionEnableProp = "unclean.leader.election.enable"
   val InterBrokerSecurityProtocolProp = "security.inter.broker.protocol"
@@ -484,7 +535,10 @@ object KafkaConfig {
   val AlterLogDirsReplicationQuotaWindowSizeSecondsProp = "alter.log.dirs.replication.quota.window.size.seconds"
   val ClientQuotaCallbackClassProp = "client.quota.callback.class"
 
+  // 启用删除topic。如果此配置已关闭，通过管理工具删除topic将没有任何效果
   val DeleteTopicEnableProp = "delete.topic.enable"
+  // 为给定topic指定最终的压缩类型。支持标准的压缩编码器（'gzip', 'snappy', 'lz4'）。
+  // 也接受'未压缩'，就是没有压缩。保留由producer设置的原始的压缩编码。
   val CompressionTypeProp = "compression.type"
 
   /** ********* Kafka Metrics Configuration ***********/

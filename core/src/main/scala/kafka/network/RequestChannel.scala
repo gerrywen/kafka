@@ -369,6 +369,7 @@ class RequestChannel(val queueSize: Int, val metricNamePrefix : String, time: Ti
   }
 
   /** Send a request to be handled, potentially blocking until there is room in the queue for the request */
+  // 发送一个要处理的请求，可能会阻塞，直到队列中有空间处理该请求
   def sendRequest(request: RequestChannel.Request): Unit = {
     requestQueue.put(request)
   }
