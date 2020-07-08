@@ -92,19 +92,19 @@ import kafka.coordinator.group.GroupOverview
 /**
  * Logic to handle the various Kafka requests
  */
-class KafkaApis(val requestChannel: RequestChannel,
-                val replicaManager: ReplicaManager,
-                val adminManager: AdminManager,
-                val groupCoordinator: GroupCoordinator,
-                val txnCoordinator: TransactionCoordinator,
-                val controller: KafkaController,
-                val zkClient: KafkaZkClient,
-                val brokerId: Int,
-                val config: KafkaConfig,
-                val metadataCache: MetadataCache,
+class KafkaApis(val requestChannel: RequestChannel, // 请求通道
+                val replicaManager: ReplicaManager, // 副本管理器
+                val adminManager: AdminManager, // 主题、分区、配置等方面的管理器
+                val groupCoordinator: GroupCoordinator, // 消费者组协调器组件
+                val txnCoordinator: TransactionCoordinator, // 事务管理器组件
+                val controller: KafkaController, // 控制器组件
+                val zkClient: KafkaZkClient, // ZooKeeper客户端程序，Kafka依赖于该类实现与ZooKeeper交互
+                val brokerId: Int, // broker.id参数值
+                val config: KafkaConfig, // Kafka配置类
+                val metadataCache: MetadataCache, // 元数据缓存类
                 val metrics: Metrics,
                 val authorizer: Option[Authorizer],
-                val quotas: QuotaManagers,
+                val quotas: QuotaManagers, // 配额管理器组件
                 val fetchManager: FetchManager,
                 brokerTopicStats: BrokerTopicStats,
                 val clusterId: String,
@@ -123,11 +123,18 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Top-level method that handles all requests and multiplexes to the right api
+   * 将所有请求和多路复用处理到正确api的顶级方法
    */
   def handle(request: RequestChannel.Request): Unit = {
     try {
       trace(s"Handling request:${request.requestDesc(true)} from connection ${request.context.connectionId};" +
         s"securityProtocol:${request.context.securityProtocol},principal:${request.context.principal}")
+      // 根据请求头部信息中的apiKey字段判断属于哪类请求
+      // 然后调用响应的handle***方法
+      // 如果新增RPC协议类型，则：
+      // 1. 添加新的apiKey标识新请求类型
+      // 2. 添加新的case分支
+      // 3. 添加对应的handle***方法
       request.header.apiKey match {
         case ApiKeys.PRODUCE => handleProduceRequest(request)
         case ApiKeys.FETCH => handleFetchRequest(request)
@@ -181,10 +188,13 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.ALTER_CLIENT_QUOTAS => handleAlterClientQuotasRequest(request)
       }
     } catch {
+      // 如果是严重错误，则抛出异常
       case e: FatalExitError => throw e
+      // 普通异常的话，记录下错误日志
       case e: Throwable => handleError(request, e)
     } finally {
       // The local completion time may be set while processing the request. Only record it if it's unset.
+      // 记录一下请求本地完成时间，即Broker处理完该请求的时间
       if (request.apiLocalCompleteTimeNanos < 0)
         request.apiLocalCompleteTimeNanos = time.nanoseconds
     }
@@ -525,6 +535,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     }
 
     // the callback for sending a produce response
+    // 用于发送生成响应的回调
     def sendResponseCallback(responseStatus: Map[TopicPartition, PartitionResponse]): Unit = {
       val mergedResponseStatus = responseStatus ++ unauthorizedTopicResponses ++ nonExistingTopicResponses ++ invalidRequestResponses
       var errorInResponse = false
@@ -543,6 +554,8 @@ class KafkaApis(val requestChannel: RequestChannel,
       // Record both bandwidth and request quota-specific values and throttle by muting the channel if any of the quotas
       // have been violated. If both quotas have been violated, use the max throttle time between the two quotas. Note
       // that the request quota is not enforced if acks == 0.
+      // 记录带宽和特定于请求配额的值，并在任何配额被违反时通过关闭通道来进行节流。
+      // 如果违反了两个配额，则使用两个配额之间的最大节流时间。注意，如果acks == 0，则不执行请求配额。
       val timeMs = time.milliseconds()
       val bandwidthThrottleTimeMs = quotas.produce.maybeRecordAndGetThrottleTimeMs(request, numBytesAppended, timeMs)
       val requestThrottleTimeMs =
@@ -559,10 +572,15 @@ class KafkaApis(val requestChannel: RequestChannel,
       }
 
       // Send the response immediately. In case of throttling, the channel has already been muted.
+      // 立即发送响应。在节流的情况下，通道已经被清除。
       if (produceRequest.acks == 0) {
         // no operation needed if producer request.required.acks = 0; however, if there is any error in handling
         // the request, since no response is expected by the producer, the server will close socket server so that
         // the producer client will know that some error has happened and will refresh its metadata
+
+        //如果生产者request.ack=0，不需要操作;但是，如果有任何错误请求处理
+        //由于生产者不需要响应，服务器将关闭套接字服务器，
+        //以便生产者客户端将知道发生了错误，并刷新它的元数据
         if (errorInResponse) {
           val exceptionsSummary = mergedResponseStatus.map { case (topicPartition, status) =>
             topicPartition -> status.error.exceptionName
@@ -925,6 +943,9 @@ class KafkaApis(val requestChannel: RequestChannel,
       } catch {
         // NOTE: UnknownTopicOrPartitionException and NotLeaderForPartitionException are special cased since these error messages
         // are typically transient and there is no value in logging the entire stack trace for the same
+
+        // 注意:UnknownTopicOrPartitionException和NotLeaderForPartitionException是特殊情况，
+        // 因为这些错误消息通常是暂时的，记录整个堆栈跟踪是没有价值的
         case e @ (_ : UnknownTopicOrPartitionException |
                   _ : NotLeaderForPartitionException |
                   _ : KafkaStorageException) =>
@@ -997,6 +1018,9 @@ class KafkaApis(val requestChannel: RequestChannel,
         } catch {
           // NOTE: These exceptions are special cased since these error messages are typically transient or the client
           // would have received a clear exception and there is no value in logging the entire stack trace for the same
+
+          //注意:这些异常是特殊情况，因为这些错误消息通常是暂时的，
+          // 或者客户端已经收到了一个明确的异常，因此记录整个堆栈跟踪是没有价值的
           case e @ (_ : UnknownTopicOrPartitionException |
                     _ : NotLeaderForPartitionException |
                     _ : UnknownLeaderEpochException |
@@ -1035,6 +1059,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       metadataResponseTopic(Errors.LEADER_NOT_AVAILABLE, topic, isInternal(topic), util.Collections.emptyList())
     } catch {
       case _: TopicExistsException => // let it go, possibly another broker created this topic
+        // 显式封装一个LEADER_NOT_AVAILABLE Response
         metadataResponseTopic(Errors.LEADER_NOT_AVAILABLE, topic, isInternal(topic), util.Collections.emptyList())
       case ex: Throwable  => // Catch all to prevent unhandled errors
         metadataResponseTopic(Errors.forException(ex), topic, isInternal(topic), util.Collections.emptyList())
@@ -1394,7 +1419,9 @@ class KafkaApis(val requestChannel: RequestChannel,
     sendResponseCallback(describeGroupsResponseData)
   }
 
+  // 这类请求的 Response 应该返回集群中的消费者组信息。
   def handleListGroupsRequest(request: RequestChannel.Request): Unit = {
+    // 调用GroupCoordinator的handleListGroups方法拿到所有Group信息
     val listGroupsRequest = request.body[ListGroupsRequest]
     val states = if (listGroupsRequest.data.statesFilter == null)
       // Handle a null array the same as empty
@@ -1416,11 +1443,14 @@ class KafkaApis(val requestChannel: RequestChannel,
         )
     }
     val (error, groups) = groupCoordinator.handleListGroups(states)
+    // 如果Clients具备CLUSTER资源的DESCRIBE权限
     if (authorize(request.context, DESCRIBE, CLUSTER, CLUSTER_NAME))
       // With describe cluster access all groups are returned. We keep this alternative for backward compatibility.
+      // // 直接使用刚才拿到的Group数据封装进Response然后发送
       sendResponseMaybeThrottle(request, requestThrottleMs =>
         createResponse(requestThrottleMs, groups, error))
     else {
+      // 找出Clients对哪些Group有GROUP资源的DESCRIBE权限，返回这些Group信息
       val filteredGroups = groups.filter(group => authorize(request.context, DESCRIBE, GROUP, group.groupId))
       sendResponseMaybeThrottle(request, requestThrottleMs =>
         createResponse(requestThrottleMs, filteredGroups, error))
@@ -1683,6 +1713,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     sendResponseMaybeThrottle(request, createResponseCallback)
   }
 
+  // 创建主题请求
   def handleCreateTopicsRequest(request: RequestChannel.Request): Unit = {
     def sendResponseCallback(results: CreatableTopicResultCollection): Unit = {
       def createResponse(requestThrottleMs: Int): AbstractResponse = {
@@ -1709,12 +1740,15 @@ class KafkaApis(val requestChannel: RequestChannel,
       createTopicsRequest.data.topics.forEach { topic =>
         results.add(new CreatableTopicResult().setName(topic.name))
       }
+      // 是否具有CLUSTER资源的CREATE权限
       val hasClusterAuthorization = authorize(request.context, CREATE, CLUSTER, CLUSTER_NAME,
         logIfDenied = false)
       val topics = createTopicsRequest.data.topics.asScala.map(_.name)
+      // 如果具有CLUSTER CREATE权限，则允许主题创建，否则，还要查看是否具有TOPIC资源的CREATE权限
       val authorizedTopics =
         if (hasClusterAuthorization) topics.toSet
         else filterByAuthorized(request.context, CREATE, TOPIC, topics)(identity)
+      // 是否具有TOPIC资源的DESCRIBE_CONFIGS权限
       val authorizedForDescribeConfigs = filterByAuthorized(request.context, DESCRIBE_CONFIGS, TOPIC,
         topics, logIfDenied = false)(identity).map(name => name -> results.find(name)).toMap
 
@@ -1722,11 +1756,11 @@ class KafkaApis(val requestChannel: RequestChannel,
         if (results.findAll(topic.name).size > 1) {
           topic.setErrorCode(Errors.INVALID_REQUEST.code)
           topic.setErrorMessage("Found multiple entries for this topic.")
-        } else if (!authorizedTopics.contains(topic.name)) {
+        } else if (!authorizedTopics.contains(topic.name)) {// 如果不具备CLUSTER资源的CREATE权限或TOPIC资源的CREATE权限，认证失败！
           topic.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
           topic.setErrorMessage("Authorization failed.")
         }
-        if (!authorizedForDescribeConfigs.contains(topic.name)) {
+        if (!authorizedForDescribeConfigs.contains(topic.name)) {// 如果不具备TOPIC资源的DESCRIBE_CONFIGS权限，设置主题配置错误码
           topic.setTopicConfigErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code)
         }
       })
@@ -2954,8 +2988,11 @@ class KafkaApis(val requestChannel: RequestChannel,
                                 logIfDenied: Boolean = true,
                                 refCount: Int = 1): Boolean = {
     authorizer.forall { authZ =>
+      // 获取待鉴权的资源类型
+      // 常见的资源类型如TOPIC、GROUP、CLUSTER等
       val resource = new ResourcePattern(resourceType, resourceName, PatternType.LITERAL)
       val actions = Collections.singletonList(new Action(operation, resource, refCount, logIfAllowed, logIfDenied))
+      // 返回鉴权结果，是ALLOWED还是DENIED
       authZ.authorize(requestContext, actions).get(0) == AuthorizationResult.ALLOWED
     }
   }
@@ -3070,6 +3107,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   // Throttle the channel if the request quota is enabled but has been violated. Regardless of throttling, send the
   // response immediately.
+  // 发送普通 Response 但接受限流的约束。
   private def sendResponseMaybeThrottle(request: RequestChannel.Request,
                                         createResponse: Int => AbstractResponse,
                                         onComplete: Option[Send => Unit] = None): Unit = {
@@ -3078,6 +3116,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     sendResponse(request, Some(createResponse(throttleTimeMs)), onComplete)
   }
 
+  // 发送携带错误信息的 Response 但接受限流的约束。
   private def sendErrorResponseMaybeThrottle(request: RequestChannel.Request, error: Throwable): Unit = {
     val throttleTimeMs = maybeRecordAndGetThrottleTimeMs(request)
     quotas.request.throttle(request, throttleTimeMs, requestChannel.sendResponse)
@@ -3090,6 +3129,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     throttleTimeMs
   }
 
+  // 发送普通 Response 而不受限流限制。
   private def sendResponseExemptThrottle(request: RequestChannel.Request,
                                          response: AbstractResponse,
                                          onComplete: Option[Send => Unit] = None): Unit = {
@@ -3097,6 +3137,7 @@ class KafkaApis(val requestChannel: RequestChannel,
     sendResponse(request, Some(response), onComplete)
   }
 
+  // 发送携带错误信息的 Response 而不受限流限制。
   private def sendErrorResponseExemptThrottle(request: RequestChannel.Request, error: Throwable): Unit = {
     quotas.request.maybeRecordExempt(request)
     sendErrorOrCloseConnection(request, error, 0)
@@ -3111,6 +3152,8 @@ class KafkaApis(val requestChannel: RequestChannel,
       sendResponse(request, Some(response), None)
   }
 
+  // 发送 NoOpResponse 类型的 Response 而不受请求通道上限流（throttling）的限制。
+  // 所谓的 NoOpResponse，是指 Processor 线程取出该类型的 Response 后，不执行真正的 I/O 发送操作
   private def sendNoOpResponseExemptThrottle(request: RequestChannel.Request): Unit = {
     quotas.request.maybeRecordExempt(request)
     sendResponse(request, None, None)
@@ -3123,6 +3166,8 @@ class KafkaApis(val requestChannel: RequestChannel,
     requestChannel.sendResponse(new RequestChannel.CloseConnectionResponse(request))
   }
 
+  // 该方法接收的实际上是 Request，而非 Response，
+  // 因此，它会在内部构造出 Response 对象之后，再调用 sendResponse 方法。
   private def sendResponse(request: RequestChannel.Request,
                            responseOpt: Option[AbstractResponse],
                            onComplete: Option[Send => Unit]): Unit = {
