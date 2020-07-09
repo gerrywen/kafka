@@ -420,7 +420,11 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
 
   /**
     * Gets all brokers with broker epoch in the cluster.
-    * @return map of broker to epoch in the cluster.
+   *
+   * @return map of broker to epoch in the cluster.
+   *
+   * 获取集群中具有代理epoch的所有代理。
+   * @return 代理到集群中的epoch的映射。
     */
   def getAllBrokerAndEpochsInCluster: Map[Broker, Long] = {
     val brokerIds = getSortedBrokerList
@@ -799,6 +803,7 @@ class KafkaZkClient private[zk] (zooKeeperClient: ZooKeeperClient, isSecure: Boo
 
   /**
    * Remove the given topics from the topics marked for deletion.
+   * 从标记为删除的主题中删除给定主题。
    * @param topics the topics to remove.
    * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */

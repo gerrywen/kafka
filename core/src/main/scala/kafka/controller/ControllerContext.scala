@@ -187,6 +187,7 @@ class ControllerContext {
     liveBrokerEpochs --= brokerIds
   }
 
+  // 更新元数据
   def updateBrokerMetadata(oldMetadata: Broker, newMetadata: Broker): Unit = {
     liveBrokers -= oldMetadata
     liveBrokers += newMetadata
