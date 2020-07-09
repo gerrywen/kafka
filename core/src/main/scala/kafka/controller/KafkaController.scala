@@ -57,6 +57,7 @@ object KafkaController extends Logging {
   type AlterReassignmentsCallback = Either[Map[TopicPartition, ApiError], ApiError] => Unit
 }
 
+// ControllerEventProcessor 接口的唯一实现类。
 class KafkaController(val config: KafkaConfig,
                       zkClient: KafkaZkClient,
                       time: Time,
@@ -1796,8 +1797,10 @@ class KafkaController(val config: KafkaConfig,
   }
 
 
+  // 重点 它是实现 Controller 事件处理的主力方法
   override def process(event: ControllerEvent): Unit = {
     try {
+      // 依次匹配ControllerEvent事件
       event match {
         case event: MockEvent =>
           // Used only in test cases
@@ -1854,8 +1857,10 @@ class KafkaController(val config: KafkaConfig,
           processStartup()
       }
     } catch {
+      // 如果Controller换成了别的Broker
       case e: ControllerMovedException =>
         info(s"Controller moved to another broker when processing $event.", e)
+        // 执行Controller卸任逻辑
         maybeResign()
       case e: Throwable =>
         error(s"Error processing event $event", e)
@@ -1991,6 +1996,7 @@ private[controller] class ControllerStats extends KafkaMetricsGroup {
 
 }
 
+// Controller 事件，也就是事件队列中被处理的对象。
 sealed trait ControllerEvent {
   def state: ControllerState
 }

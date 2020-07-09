@@ -21,8 +21,9 @@ import scala.collection.Seq
 
 sealed abstract class ControllerState {
 
-  def value: Byte
+  def value: Byte // 表示 Controller 状态的序号，从 0 开始
 
+  // 用于构造 Controller 状态速率的监控指标名称的
   def rateAndTimeMetricName: Option[String] =
     if (hasRateAndTimeMetric) Some(s"${toString}RateAndTimeMs") else None
 
