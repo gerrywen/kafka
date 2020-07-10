@@ -26,6 +26,7 @@ import scala.math._
 
 @threadsafe
 private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
+  // taskCounter 用于标识当前这个链表中的总定时任务数；
 
   // TimerTaskList forms a doubly linked cyclic list using a dummy root entry
   // root.next points to the head
@@ -34,6 +35,7 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
   root.next = root
   root.prev = root
 
+  // 表示这个链表所在 Bucket 的过期时间戳。
   private[this] val expiration = new AtomicLong(-1L)
 
   // Set the bucket's expiration time
@@ -66,6 +68,7 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
       // Remove the timer task entry if it is already in any other list
       // We do this outside of the sync block below to avoid deadlocking.
       // We may retry until timerTaskEntry.list becomes null.
+      // 在添加之前尝试移除该定时任务，保证该任务没有在其他链表中
       timerTaskEntry.remove()
 
       synchronized {
@@ -105,12 +108,17 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
   // Remove all task entries and apply the supplied function to each of them
   def flush(f: (TimerTaskEntry)=>Unit): Unit = {
     synchronized {
+      // 找到链表第一个元素
       var head = root.next
+      // 开始遍历链表
       while (head ne root) {
+        // 移除遍历到的链表元素
         remove(head)
+        // 执行传入参数f的逻辑
         f(head)
         head = root.next
       }
+      // 清空过期时间设置
       expiration.set(-1L)
     }
   }
@@ -126,21 +134,24 @@ private[timer] class TimerTaskList(taskCounter: AtomicInteger) extends Delayed {
 
 }
 
+// TimerTaskEntry 与 TimerTask 是 1 对 1 的关系，
+// TimerTaskList 下包含多个 TimerTaskEntry，TimingWheel 包含多个 TimerTaskList。
 private[timer] class TimerTaskEntry(val timerTask: TimerTask, val expirationMs: Long) extends Ordered[TimerTaskEntry] {
 
   @volatile
-  var list: TimerTaskList = null
-  var next: TimerTaskEntry = null
-  var prev: TimerTaskEntry = null
+  var list: TimerTaskList = null // 绑定的Bucket链表实例
+  var next: TimerTaskEntry = null // next指针
+  var prev: TimerTaskEntry = null // prev指针
 
   // if this timerTask is already held by an existing timer task entry,
   // setTimerTaskEntry will remove it.
+  // 关联给定的定时任务
   if (timerTask != null) timerTask.setTimerTaskEntry(this)
-
+  // 关联定时任务是否已经被取消了
   def cancelled: Boolean = {
     timerTask.getTimerTaskEntry != this
   }
-
+  // 从Bucket链表中移除自己
   def remove(): Unit = {
     var currentList = list
     // If remove is called when another thread is moving the entry from a task entry list to another,
