@@ -285,8 +285,8 @@ class KafkaController(val config: KafkaConfig,
     info("Sending update metadata request")
     sendUpdateMetadataRequest(controllerContext.liveOrShuttingDownBrokerIds.toSeq, Set.empty)
 
-    replicaStateMachine.startup()
-    partitionStateMachine.startup()
+    replicaStateMachine.startup()// 启动副本状态机
+    partitionStateMachine.startup()// 启动分区状态机
 
     info(s"Ready to serve as the new controller with epoch $epoch")
 
@@ -977,6 +977,7 @@ class KafkaController(val config: KafkaConfig,
     partitionModificationsHandlers.values.foreach(zkClient.registerZNodeChangeHandler)
   }
 
+  // 取消 ZooKeeper 上对给定主题的分区节点数据变更的监听
   private[controller] def unregisterPartitionModificationsHandlers(topics: Seq[String]) = {
     topics.foreach { topic =>
       partitionModificationsHandlers.remove(topic).foreach(handler => zkClient.unregisterZNodeChangeHandler(handler.path))
