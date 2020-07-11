@@ -271,14 +271,23 @@ public class FetchResponse<T extends BaseRecords> extends AbstractResponse {
     }
 
     public static final class PartitionData<T extends BaseRecords> {
-        public final Errors error;
-        public final long highWatermark;
-        public final long lastStableOffset;
-        public final long logStartOffset;
+        public final Errors error; // 错误码
+        public final long highWatermark; // 高水位值
+        public final long lastStableOffset; // 最新LSO值
+        public final long logStartOffset; // 最新Log Start Offset值
+        // 期望的Read Replica
+        // KAFKA 2.4之后支持部分Follower副本可以对外提供读服务
         public final Optional<Integer> preferredReadReplica;
+        // 该分区对应的已终止事务列表
         public final List<AbortedTransaction> abortedTransactions;
+        // 消息集合，最重要的字段！ 保存实际的消息集合
         public final T records;
 
+        // preferredReadReplica，用于指定可对外提供读服务的 Follower 副本；
+        // abortedTransactions，用于保存该分区当前已终止事务列表；
+        // lastStableOffset 是最新的 LSO 值，属于 Kafka 事务的概念。
+
+        // 构造函数......
         public PartitionData(Errors error,
                              long highWatermark,
                              long lastStableOffset,

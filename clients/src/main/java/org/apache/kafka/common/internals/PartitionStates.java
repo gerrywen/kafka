@@ -43,6 +43,7 @@ import java.util.stream.Stream;
  */
 public class PartitionStates<S> {
 
+    // 保存所有主题分区
     private final LinkedHashMap<TopicPartition, S> map = new LinkedHashMap<>();
     private final Set<TopicPartition> partitionSetView = Collections.unmodifiableSet(map.keySet());
 
