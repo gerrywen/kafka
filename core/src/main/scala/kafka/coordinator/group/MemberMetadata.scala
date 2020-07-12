@@ -21,6 +21,16 @@ import java.util
 
 import kafka.utils.nonthreadsafe
 
+/**
+ * 组成员概要数据，提取了最核心的元数据信息。上面例子中工具行命令返回的结果，就是这个类提供的数据。
+ * @param memberId // 成员ID，由Kafka自动生成, 目前它还是硬编码的，不能让你设置。
+ * @param groupInstanceId // Consumer端参数group.instance.id值， 静态成员机制的引入能够规避不必要的消费者组 Rebalance 操作。
+ * @param clientId // client.id参数值
+ * @param clientHost // Consumer端程序主机名
+ * @param metadata // 消费者组成员使用的分配策略，由消费者端参数 partition.assignment.strategy 值设定，
+ *                 默认的 RangeAssignor 策略是按照主题平均分配分区。
+ * @param assignment // 成员订阅分区，每个消费者组都要选出一个 Leader 消费者组成员，负责给所有成员分配消费方案
+ */
 case class MemberSummary(memberId: String,
                          groupInstanceId: Option[String],
                          clientId: String,
@@ -28,7 +38,9 @@ case class MemberSummary(memberId: String,
                          metadata: Array[Byte],
                          assignment: Array[Byte])
 
+// 伴生对象：仅仅定义了一个工具方法，供上层组件调用。
 private object MemberMetadata {
+  // 提取分区分配策略集合
   def plainProtocolSet(supportedProtocols: List[(String, Array[Byte])]) = supportedProtocols.map(_._1).toSet
 }
 
@@ -52,21 +64,29 @@ private object MemberMetadata {
  *                            is kept in metadata until the leader provides the group assignment
  *                            and the group transitions to stable
  */
+// 消费者组成员的元数据。Kafka 为消费者组成员定义了很多数据
 @nonthreadsafe
 private[group] class MemberMetadata(var memberId: String,
                                     val groupId: String,
                                     val groupInstanceId: Option[String],
                                     val clientId: String,
                                     val clientHost: String,
-                                    val rebalanceTimeoutMs: Int,
-                                    val sessionTimeoutMs: Int,
-                                    val protocolType: String,
+                                    val rebalanceTimeoutMs: Int, // Rebalane操作超时时间，这个字段的值是 Consumer 端参数 max.poll.interval.ms 的值。
+                                    val sessionTimeoutMs: Int, // 会话超时时间， 这个字段的值是 Consumer 端参数 session.timeout.ms 的值。
+                                    val protocolType: String, // 对消费者组而言，是"consumer"，场景具体有两个：第一个是作为普通的消费者组使用，该字段对应的值就是 consumer；
+                                                                // 第二个是供 Kafka Connect 组件中的消费者使用，该字段对应的值是 connect。
+                                    // 成员配置的多套分区分配策略，Consumer 端参数 partition.assignment.strategy 的类型是 List，说明你可以为消费者组成员设置多组分配策略
                                     var supportedProtocols: List[(String, Array[Byte])]) {
 
+  // 保存分配给该成员的分区分配方案。
   var assignment: Array[Byte] = Array.empty[Byte]
+  // 表示组成员是否正在等待加入组。
   var awaitingJoinCallback: JoinGroupResult => Unit = null
+  // 表示组成员是否正在等待 GroupCoordinator 发送分配方案。
   var awaitingSyncCallback: SyncGroupResult => Unit = null
+  // 表示组成员是否发起“退出组”的操作。
   var isLeaving: Boolean = false
+  // 表示是否是消费者组下的新成员。
   var isNew: Boolean = false
   val isStaticMember: Boolean = groupInstanceId.isDefined
 
@@ -84,6 +104,7 @@ private[group] class MemberMetadata(var memberId: String,
    * Get metadata corresponding to the provided protocol.
    */
   def metadata(protocol: String): Array[Byte] = {
+    // 从配置的分区分配策略中寻找给定策略
     supportedProtocols.find(_._1 == protocol) match {
       case Some((_, metadata)) => metadata
       case None =>
