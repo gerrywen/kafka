@@ -46,8 +46,13 @@ object Broker {
  * A Kafka broker.
  *
  * @param id          a broker id
+ *                    每一个boker都有一个唯一的id作为它们的名字。 这就允许boker切换到别的主机/端口上， consumer依然知道
  * @param endPoints   a collection of EndPoint. Each end-point is (host, port, listener name, security protocol).
- * @param rack        an optional rack
+ *                    它就是你定义的 Kafka Broker 连接信息，比如 PLAINTEXT://localhost:9092。
+ *                    Acceptor 需要用到 endPoint 包含的主机名和端口信息创建 Server Socket。
+ * @param rack        an optional rack 指定broker机架信息。
+ *                    若设置了机架信息，kafka在分配副本时会考虑把某个分区的多个副本分配在多个机架上，
+ *                    这样即使某个机架上的broker全部崩溃，也能保证其他机架上的副本可以正常工作
  * @param features    supported features
  */
 case class Broker(id: Int, endPoints: Seq[EndPoint], rack: Option[String], features: Features[SupportedVersionRange]) {

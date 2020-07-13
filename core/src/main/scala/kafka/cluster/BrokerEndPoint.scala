@@ -29,6 +29,9 @@ object BrokerEndPoint {
   /**
    * BrokerEndPoint URI is host:port or [ipv6_host]:port
    * Note that unlike EndPoint (or listener) this URI has no security information.
+   *
+   * BrokerEndPoint URI是host:port或[ipv6_host]:port
+   * 注意，与端点(或侦听器)不同，这个URI没有安全信息。
    */
   def parseHostPort(connectionString: String): Option[(String, Int)] = {
     connectionString match {
@@ -41,12 +44,19 @@ object BrokerEndPoint {
    * BrokerEndPoint URI is host:port or [ipv6_host]:port
    * Note that unlike EndPoint (or listener) this URI has no security information.
    */
+  /**
+   * 创建 BrokerEndPoint
+   * @param brokerId kafka机器broker id
+   * @param connectionString   "localhost:9092"
+   * @return BrokerEndPoint
+   */
   def createBrokerEndPoint(brokerId: Int, connectionString: String): BrokerEndPoint = {
-    parseHostPort(connectionString).map { case (host, port) => new BrokerEndPoint(brokerId, host, port) }.getOrElse {
+    parseHostPort(connectionString).map { case (host, port) => new BrokerEndPoint(brokerId, host, port)  }.getOrElse {
       throw new KafkaException("Unable to parse " + connectionString + " to a broker endpoint")
     }
   }
 
+  // 读取数据
   def readFrom(buffer: ByteBuffer): BrokerEndPoint = {
     val brokerId = buffer.getInt()
     val host = readShortString(buffer)
@@ -61,6 +71,12 @@ object BrokerEndPoint {
  * and contains no information about the security protocol used on the connection.
  * Clients should know which security protocol to use from configuration.
  * This allows us to keep the wire protocol with the clients unchanged where the protocol is not needed.
+ *
+ * BrokerEndpoint用于连接到特定的主机:端口对。
+ * 通常由客户端(或连接到其他代理时的代理)使用
+ * 并且不包含关于连接上使用的安全协议的信息。
+ * 客户端应该从配置中知道使用哪种安全协议。
+ * 这允许我们保持与客户端的有线协议不变，协议是不需要的。
  */
 case class BrokerEndPoint(id: Int, host: String, port: Int) {
 

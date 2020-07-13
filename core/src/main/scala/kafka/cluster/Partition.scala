@@ -188,6 +188,19 @@ case class SimpleAssignmentState(replicas: Seq[Int]) extends AssignmentState
  *    locking order Partition lock -> Log lock.
  * 5) lock is used to prevent the follower replica from being updated while ReplicaAlterDirThread is
  *    executing maybeReplaceCurrentWithFutureReplica() to replace follower replica with the future replica.
+ *
+ * 表示主题分区的数据结构。leader 维护 AR, ISR, CUR, RAR
+ *
+ * 并发指出:
+ * 1)分区是线程安全的。分区上的操作可以从不同的分区并发调用请求处理程序线程
+ * 2)使用读写锁同步ISR更新。读锁用于检查是否更新是必需的，以避免在没有更新时获取副本的常见情况下获取写锁执行。
+ *   执行之前，在写锁下第二次检查ISR更新条件更新
+ * 3)在持有ISR写锁的同时，处理诸如leader更改等其他操作。
+ *   这可能会在生成和复制获取请求中引入延迟，但这些操作通常是罕见。
+ * 4) HW更新使用ISR读锁同步。@Log锁是在更新时获得的
+ *   锁定顺序分区锁->日志锁。
+ * 5) lock用来防止follower副本被更新，而ReplicaAlterDirThread是
+ *   执行maybeReplaceCurrentWithFutureReplica()将追随者副本替换为未来副本。
  */
 class Partition(val topicPartition: TopicPartition,
                 val replicaLagTimeMaxMs: Long,

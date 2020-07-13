@@ -27,6 +27,7 @@ import org.apache.kafka.common.utils.{Java, LoggingSignalHandler, OperatingSyste
 
 import scala.jdk.CollectionConverters._
 
+// 启动入口
 object Kafka extends Logging {
 
   def getPropsFromArgs(args: Array[String]): Properties = {
@@ -62,6 +63,7 @@ object Kafka extends Logging {
     props
   }
 
+  // 入口
   def main(args: Array[String]): Unit = {
     try {
       val serverProps = getPropsFromArgs(args)
