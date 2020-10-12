@@ -41,6 +41,7 @@ private[log] case class TxnIndexSearchResult(abortedTransactions: List[AbortedTx
  * may span multiple segments. Recovering the index therefore requires scanning the earlier segments in
  * order to find the start of the transactions.
  */
+// 已中止（Aborted）事务的索引文件
 @nonthreadsafe
 class TransactionIndex(val startOffset: Long, @volatile private var _file: File) extends Logging {
 

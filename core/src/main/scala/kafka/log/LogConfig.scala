@@ -316,6 +316,7 @@ object LogConfig {
 
   /**
    * Check that property names are valid
+   * 检查属性名是否有效
    */
   def validateNames(props: Properties): Unit = {
     val names = configNames
@@ -347,6 +348,9 @@ object LogConfig {
   /**
    * Map topic config to the broker config with highest priority. Some of these have additional synonyms
    * that can be obtained using [[kafka.server.DynamicBrokerConfig#brokerConfigSynonyms]]
+   *
+   * 将主题配置 映射 到具有最高优先级的 broker配置。其中一些具有额外的同义词，
+   * 可以使用[[kafka.server.DynamicBrokerConfig#brokerConfigSynonyms]]获得。
    */
   val TopicConfigSynonyms = Map(
     SegmentBytesProp -> KafkaConfig.LogSegmentBytesProp,

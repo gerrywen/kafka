@@ -74,6 +74,7 @@ class LogSegment private[log] (val log: FileRecords,
 
   def timeIndex: TimeIndex = lazyTimeIndex.get
 
+  // 扰动值状态
   def shouldRoll(rollParams: RollParams): Boolean = {
     val reachedRollMs = timeWaitedForRoll(rollParams.now, rollParams.maxTimestampInMessages) > rollParams.maxSegmentMs - rollJitterMs
     size > rollParams.maxSegmentBytes - rollParams.messagesSize ||
@@ -517,6 +518,8 @@ class LogSegment private[log] (val log: FileRecords,
 
   /**
    * Flush this log segment to disk
+   *
+   * 将此日志段刷新到磁盘
    */
   @threadsafe
   def flush(): Unit = {
@@ -735,6 +738,7 @@ object LogSegment {
   }
 }
 
+// 结尾有个 Stats，它是做统计用的，主要负责为日志落盘进行计时。
 object LogFlushStats extends KafkaMetricsGroup {
   val logFlushTimer = new KafkaTimer(newTimer("LogFlushRateAndTimeMs", TimeUnit.MILLISECONDS, TimeUnit.SECONDS))
 }

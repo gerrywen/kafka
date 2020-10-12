@@ -400,6 +400,7 @@ object KafkaConfig {
   // 新建一个日志段的最大时间（以小时为单位），次于log.roll.ms属性。	int	168
   val LogRollTimeHoursProp = "log.roll.hours"
 
+  // 日志段切分执行时间加一个扰动值,避免大量日志段在同一时刻执行切分动作，从而显著降低磁盘 I/O
   val LogRollTimeJitterMillisProp = "log.roll.jitter.ms"
   // 从logRollTimeMillis（以小时为单位）减去最大抖动，次于log.roll.jitter.ms属性。	int	0
   val LogRollTimeJitterHoursProp = "log.roll.jitter.hours"

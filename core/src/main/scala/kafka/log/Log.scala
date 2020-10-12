@@ -169,6 +169,8 @@ case class CompletedTxn(producerId: Long, firstOffset: Long, lastOffset: Long, i
 
 /**
  * A class used to hold params required to decide to rotate a log segment or not.
+ *
+ * 用于保存决定是否 扰动 日志段所需的参数的类。
  */
 case class RollParams(maxSegmentMs: Long,
                       maxSegmentBytes: Int,
@@ -177,6 +179,7 @@ case class RollParams(maxSegmentMs: Long,
                       messagesSize: Int,
                       now: Long)
 
+// 伴生对象
 object RollParams {
   def apply(config: LogConfig, appendInfo: LogAppendInfo, messagesSize: Int, now: Long): RollParams = {
    new RollParams(config.maxSegmentMs,

@@ -50,6 +50,7 @@ import org.apache.kafka.common.record.RecordBatch
  *
  */
 // Avoid shadowing mutable file in AbstractIndex
+// 时间戳索引文件
 class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable: Boolean = true)
     extends AbstractIndex(_file, baseOffset, maxIndexSize, writable) {
   import TimeIndex._
