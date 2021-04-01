@@ -68,8 +68,10 @@ public class FileRecords extends AbstractRecords implements Closeable {
         this.isSlice = isSlice;
         this.size = new AtomicInteger();
 
+        // 是否切片
         if (isSlice) {
             // don't check the file size if this is just a slice view
+            // 如果这只是一个切片视图，就不要检查文件大小
             size.set(end - start);
         } else {
             if (channel.size() > Integer.MAX_VALUE)
@@ -81,6 +83,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
             // if this is not a slice, update the file pointer to the end of the file
             // set the file position to the last byte in the file
+            // 如果这不是一个切片，将文件指针更新到文件末尾，将文件位置设置为文件的最后一个字节
             channel.position(limit);
         }
 
@@ -136,6 +139,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
      */
     public FileRecords slice(int position, int size) throws IOException {
         // Cache current size in case concurrent write changes it
+        // 缓存当前大小，以防并发写更改它
         int currentSizeInBytes = sizeInBytes();
 
         if (position < 0)
@@ -147,6 +151,7 @@ public class FileRecords extends AbstractRecords implements Closeable {
 
         int end = this.start + position + size;
         // handle integer overflow or if end is beyond the end of the file
+        // 处理整数溢出或如果end超出了文件的结束
         if (end < 0 || end > start + currentSizeInBytes)
             end = start + currentSizeInBytes;
         return new FileRecords(file, channel, this.start + position, end, true);
@@ -156,8 +161,12 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * Append a set of records to the file. This method is not thread-safe and must be
      * protected with a lock.
      *
+     * 将一组记录附加到文件中。此方法不是线程安全的，必须用锁保护。
+     *
      * @param records The records to append
+     *                要追加的记录
      * @return the number of bytes written to the underlying file
+     *          写入基础文件的字节数
      */
     public int append(MemoryRecords records) throws IOException {
         if (records.sizeInBytes() > Integer.MAX_VALUE - size.get())
@@ -411,7 +420,9 @@ public class FileRecords extends AbstractRecords implements Closeable {
                                    boolean fileAlreadyExists,
                                    int initFileSize,
                                    boolean preallocate) throws IOException {
+        // 打开文件通道
         FileChannel channel = openChannel(file, mutable, fileAlreadyExists, initFileSize, preallocate);
+        // 文件不存在 且 预分配，  如果存在的话直接end=Integer.MAX_VALUE
         int end = (!fileAlreadyExists && preallocate) ? 0 : Integer.MAX_VALUE;
         return new FileRecords(file, channel, 0, end, false);
     }
@@ -435,6 +446,10 @@ public class FileRecords extends AbstractRecords implements Closeable {
      * Open a channel for the given file
      * For windows NTFS and some old LINUX file system, set preallocate to true and initFileSize
      * with one value (for example 512 * 1025 *1024 ) can improve the kafka produce performance.
+     *
+     * 为windows NTFS和一些旧的LINUX文件系统打开一个给定文件的通道，
+     * 设置preallocate为true, initFileSize为一个值(例如512 * 1025 *1024)可以提高kafka产生的性能。
+     *
      * @param file File path
      * @param mutable mutable
      * @param fileAlreadyExists File already exists or not
@@ -448,9 +463,11 @@ public class FileRecords extends AbstractRecords implements Closeable {
                                            boolean preallocate) throws IOException {
         if (mutable) {
             if (fileAlreadyExists || !preallocate) {
+                // 如果文件已经存在
                 return FileChannel.open(file.toPath(), StandardOpenOption.CREATE, StandardOpenOption.READ,
                         StandardOpenOption.WRITE);
             } else {
+                // 创建文件
                 RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
                 randomAccessFile.setLength(initFileSize);
                 return randomAccessFile.getChannel();

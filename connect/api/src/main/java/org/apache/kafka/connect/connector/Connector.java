@@ -32,6 +32,8 @@ import java.util.Map;
  * not use this class directly; they should inherit from {@link org.apache.kafka.connect.source.SourceConnector SourceConnector}
  * or {@link org.apache.kafka.connect.sink.SinkConnector SinkConnector}.
  * </p>
+ * 连接器管理与另一个系统的Kafka连接的集成，
+ * 要么作为摄入数据到Kafka的输入，要么作为传递数据到外部系统的输出。实现不应该直接使用这个类;
  * <p>
  * Connectors have two primary tasks. First, given some configuration, they are responsible for
  * creating configurations for a set of {@link Task}s that split up the data processing. For
@@ -42,6 +44,11 @@ import java.util.Map;
  * additions and deletions. Kafka Connect will then request new configurations and update the running
  * Tasks.
  * </p>
+ * 连接器有两个主要任务。首先，给定一些配置，他们负责为一组分割数据处理的{@link任务}创建配置。
+ * 例如，数据库连接器可以通过在任务之间均匀地划分表集来创建任务。
+ * 其次，他们负责监控需要重新配置的更改输入，并通过{@link ConnectorContext}通知Kafka Connect运行时。
+ * 继续前面的示例，连接器可能会定期检查新表，并将添加和删除通知Kafka Connect。
+ * 然后Kafka Connect将请求新的配置并更新正在运行的任务。
  */
 public abstract class Connector implements Versioned {
 
@@ -51,6 +58,7 @@ public abstract class Connector implements Versioned {
     /**
      * Initialize this connector, using the provided ConnectorContext to notify the runtime of
      * input configuration changes.
+     * 初始化此连接器，使用提供的ConnectorContext通知运行时输入配置更改。
      * @param ctx context object used to interact with the Kafka Connect runtime
      */
     public void initialize(ConnectorContext ctx) {
@@ -62,12 +70,17 @@ public abstract class Connector implements Versioned {
      * Initialize this connector, using the provided ConnectorContext to notify the runtime of
      * input configuration changes and using the provided set of Task configurations.
      * This version is only used to recover from failures.
+     * 初始化此连接器，使用提供的ConnectorContext通知运行时输入配置更改，并使用提供的任务配置集。
+     * 此版本仅用于从失败中恢复。
      * </p>
      * <p>
      * The default implementation ignores the provided Task configurations. During recovery, Kafka Connect will request
      * an updated set of configurations and update the running Tasks appropriately. However, Connectors should
      * implement special handling of this case if it will avoid unnecessary changes to running Tasks.
      * </p>
+     * 默认实现忽略提供的任务配置。
+     * 在恢复期间，Kafka Connect将请求一组更新的配置，并相应地更新正在运行的任务。
+     * 但是，如果连接器能够避免对正在运行的任务进行不必要的更改，则应该实现对这种情况的特殊处理。
      *
      * @param ctx context object used to interact with the Kafka Connect runtime
      * @param taskConfigs existing task configurations, which may be used when generating new task configs to avoid
@@ -81,6 +94,7 @@ public abstract class Connector implements Versioned {
 
     /**
      * Returns the context object used to interact with the Kafka Connect runtime.
+     * 返回用于与Kafka连接运行时交互的上下文对象。
      *
      * @return the context for this Connector.
      */
@@ -111,12 +125,15 @@ public abstract class Connector implements Versioned {
 
     /**
      * Returns the Task implementation for this Connector.
+     * 返回此连接器的任务实现。
      */
     public abstract Class<? extends Task> taskClass();
 
     /**
      * Returns a set of configurations for Tasks based on the current configuration,
      * producing at most count configurations.
+     *
+     * 根据当前配置为任务返回一组配置，最多生成计数配置。
      *
      * @param maxTasks maximum number of configurations to generate
      * @return configurations for Tasks
@@ -130,6 +147,7 @@ public abstract class Connector implements Versioned {
 
     /**
      * Validate the connector configuration values against configuration definitions.
+     * 根据配置定义验证连接器配置值。
      * @param connectorConfigs the provided configuration values
      * @return List of Config, each Config contains the updated configuration information given
      * the current configuration values.

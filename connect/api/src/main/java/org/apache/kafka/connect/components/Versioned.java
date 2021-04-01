@@ -19,12 +19,15 @@ package org.apache.kafka.connect.components;
 
 /**
  * Connect requires some components implement this interface to define a version string.
+ * Connect需要一些组件实现此接口来定义版本字符串。
  */
 public interface Versioned {
     /**
      * Get the version of this component.
+     * 获取该组件的版本。
      *
      * @return the version, formatted as a String. The version may not be (@code null} or empty.
+     * 格式为字符串的版本。版本可能不是(@code null}或空。
      */
     String version();
 }

@@ -24,6 +24,7 @@ import java.util.Map;
 
 /**
  * SourceTask is a Task that pulls records from another system for storage in Kafka.
+ * SourceTask是一项任务，它从另一个系统中提取记录并存储在Kafka中。
  */
 public abstract class SourceTask implements Task {
 
@@ -31,6 +32,7 @@ public abstract class SourceTask implements Task {
 
     /**
      * Initialize this SourceTask with the specified context object.
+     * 用指定的上下文对象初始化这个源请求。
      */
     public void initialize(SourceTaskContext context) {
         this.context = context;

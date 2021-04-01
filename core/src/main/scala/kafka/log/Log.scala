@@ -258,6 +258,8 @@ class Log(@volatile private var _dir: File,
 
   // The memory mapped buffer for index files of this log will be closed with either delete() or closeHandlers()
   // After memory mapped buffer is closed, no disk IO operation should be performed for this log
+  // 此日志索引文件的内存映射缓冲区将使用delete()或closeHandlers()关闭。
+  // 关闭内存映射缓冲区后，不应该对该日志执行磁盘IO操作
   @volatile private var isMemoryMappedBufferClosed = false
 
   // Cache value of parent directory to avoid allocations in hot paths like ReplicaManager.checkpointHighWatermarks
@@ -1331,7 +1333,7 @@ class Log(@volatile private var _dir: File,
           return appendInfo
         }
 
-        // 第9步：执行真正的消息写入操作，主要调用日志段对象的append方法实现
+        // todo: 第9步：执行真正的消息写入操作，主要调用日志段对象的append方法实现
         segment.append(largestOffset = appendInfo.lastOffset,
           largestTimestamp = appendInfo.maxTimestamp,
           shallowOffsetOfMaxTimestamp = appendInfo.offsetOfMaxTimestamp,
@@ -2304,6 +2306,8 @@ class Log(@volatile private var _dir: File,
   /**
    * Truncate this log so that it ends with the greatest offset < targetOffset.
    *
+   * 截断该日志，使其以最大 offset < targetOffset结束。
+   *
    * @param targetOffset The offset to truncate to, an upper bound on all offsets in the log after truncation is complete.
    * @return True iff targetOffset < logEndOffset
    */
@@ -2317,6 +2321,7 @@ class Log(@volatile private var _dir: File,
       } else {
         info(s"Truncating to offset $targetOffset")
         lock synchronized {
+          // 检查关闭内存映射缓冲区
           checkIfMemoryMappedBufferClosed()
           if (segments.firstEntry.getValue.baseOffset > targetOffset) {
             truncateFullyAndStartAt(targetOffset)

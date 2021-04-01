@@ -21,6 +21,8 @@ import org.apache.kafka.connect.connector.Connector;
 /**
  * SourceConnectors implement the connector interface to pull data from another system and send
  * it to Kafka.
+ *
+ * SourceConnectors实现了连接器接口，从另一个系统拉出数据并发送给Kafka。
  */
 public abstract class SourceConnector extends Connector {
 

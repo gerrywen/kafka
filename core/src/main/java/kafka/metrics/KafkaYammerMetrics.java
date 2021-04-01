@@ -31,6 +31,8 @@ import java.util.function.Predicate;
  * This class encapsulates the default yammer metrics registry for Kafka server,
  * and configures the set of exported JMX metrics for Yammer metrics.
  *
+ * 这个类封装了Kafka服务器默认的yammer度量注册表，并为yammer度量配置了导出的JMX度量集。
+ *
  * KafkaYammerMetrics.defaultRegistry() should always be used instead of Metrics.defaultRegistry()
  */
 public class KafkaYammerMetrics implements Reconfigurable {
@@ -44,6 +46,7 @@ public class KafkaYammerMetrics implements Reconfigurable {
         return INSTANCE.metricsRegistry;
     }
 
+    // 实例化一个registry，最核心的一个模块，相当于一个应用程序的metrics系统的容器，维护一个Map
     private final MetricsRegistry metricsRegistry = new MetricsRegistry();
     private final FilteringJmxReporter jmxReporter = new FilteringJmxReporter(metricsRegistry,
         metricName -> true);
@@ -53,6 +56,7 @@ public class KafkaYammerMetrics implements Reconfigurable {
         Runtime.getRuntime().addShutdownHook(new Thread(jmxReporter::shutdown));
     }
 
+    // 传入配置信息
     @Override
     public void configure(Map<String, ?> configs) {
         reconfigure(configs);

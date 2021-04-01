@@ -106,6 +106,9 @@ class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable:
    * The new entry is appended only if both the timestamp and offsets are greater than the last appended timestamp and
    * the last appended offset.
    *
+   * 尝试将时间索引项添加到时间索引中。
+   * 只有当时间戳和偏移量都大于最后添加的时间戳和最后添加的偏移量时，才追加新条目。
+   *
    * @param timestamp The timestamp of the new time index entry
    * @param offset The offset of the new time index entry
    * @param skipFullCheck To skip checking whether the segment is full or not. We only skip the check when the segment

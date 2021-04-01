@@ -43,6 +43,10 @@ import scala.math._
  *
  * A segment with a base offset of [base_offset] would be stored in two files, a [base_offset].index and a [base_offset].log file.
  *
+ * 每个日志段由两个核心组件构成：日志和索引。当然，这里的索引泛指广义的索引文件。
+ * 另外，这段注释还给出了一个重要的事实：每个日志段都有一个起始位移值（Base Offset），
+ * 而该位移值是此日志段所有消息中最小的位移值，同时，该值却又比前面任何日志段中消息的位移值都大。
+ *
  * @param log The file records containing log entries
  *            消息日志文件
  * @param lazyOffsetIndex The offset index
@@ -151,7 +155,11 @@ class LogSegment private[log] (val log: FileRecords,
    * Append the given messages starting with the given offset. Add
    * an entry to the index if needed.
    *
+   * 以给定的偏移量开始附加给定的消息。如果需要，向索引添加一个条目。
+   *
    * It is assumed this method is being called from within a lock.
+   *
+   * 假定这个方法是从锁中调用的。
    *
    * @param largestOffset The last offset in the message set
    *                      最大位移值
@@ -162,7 +170,9 @@ class LogSegment private[log] (val log: FileRecords,
    * @param records The log entries to append.
    *                真正要写入的消息集合
    * @return the physical position in the file of the appended records
+   *         附加记录在文件中的物理位置
    * @throws LogSegmentOffsetOverflowException if the largest offset causes index offset overflow
+   *                                           如果最大的偏移量导致索引偏移量溢出
    */
   @nonthreadsafe
   def append(largestOffset: Long,
@@ -185,7 +195,7 @@ class LogSegment private[log] (val log: FileRecords,
       ensureOffsetInRange(largestOffset)
 
       // append the messages
-      // append 方法调用 FileRecords 的 append 方法执行真正的写入
+      // todo: append 方法调用 FileRecords 的 append 方法执行真正的写入
       val appendedBytes = log.append(records)
       trace(s"Appended $appendedBytes to ${log.file} at end offset $largestOffset")
       // Update the in memory max timestamp and corresponding offset.
@@ -197,6 +207,7 @@ class LogSegment private[log] (val log: FileRecords,
       // append an entry to the index (if needed)
       // 是否需要新增索引项
       if (bytesSinceLastIndexEntry > indexIntervalBytes) {
+        // todo: 写入相对位移值和物理文件位置
         offsetIndex.append(largestOffset, physicalPosition)
         timeIndex.maybeAppend(maxTimestampSoFar, offsetOfMaxTimestampSoFar)
         // 是： 新增索引项
@@ -315,6 +326,9 @@ class LogSegment private[log] (val log: FileRecords,
   /**
    * Read a message set from this segment beginning with the first offset >= startOffset. The message set will include
    * no more than maxSize bytes and will end before maxOffset if a maxOffset is specified.
+   *
+   * 从这个段从第一个 offset>= startOffset开始读取消息集。
+   * 消息集将不包含超过maxSize字节，并且如果指定了maxOffset，消息集将在maxOffset之前结束。
    *
    * @param startOffset A lower bound on the first offset to include in the message set we read
    *                    要读取的第一条消息的位移；
@@ -568,6 +582,7 @@ class LogSegment private[log] (val log: FileRecords,
   /**
     * If not previously loaded,
     * load the timestamp of the first message into memory.
+    * 如果以前没有加载，则将第一条消息的时间戳加载到内存中。
     */
   private def loadFirstBatchTimestamp(): Unit = {
     if (rollingBasedTimestamp.isEmpty) {
@@ -585,6 +600,12 @@ class LogSegment private[log] (val log: FileRecords,
    * If the first batch does not have a timestamp, we use the wall clock time to determine when to roll a segment. A
    * segment is rolled if the difference between the current wall clock time and the segment create time exceeds the
    * segment rolling time.
+   *
+   * segment等待滚动的时间。
+   * 如果第一个消息批处理有时间戳，我们使用它的时间戳来确定何时滚动一个段。
+   * 如果新批的时间戳和第一批的时间戳之间的差异超过了段滚动时间，则对一个段进行滚动。
+   * 如果第一批没有时间戳，我们使用挂钟时间来确定何时滚动一个段。
+   * 如果当前挂钟时间与创建时间的段之间的时间差超过了该段的滚动时间，则对该段进行滚动。
    */
   def timeWaitedForRoll(now: Long, messageTimestamp: Long) : Long = {
     // Load the timestamp of the first message into memory
@@ -718,6 +739,7 @@ object LogSegment {
   // baseOffset : 获取文件偏移量
   def open(dir: File, baseOffset: Long, config: LogConfig, time: Time, fileAlreadyExists: Boolean = false,
            initFileSize: Int = 0, preallocate: Boolean = false, fileSuffix: String = ""): LogSegment = {
+    // segment.index.bytes
     val maxIndexSize = config.maxIndexSize
     new LogSegment(
       FileRecords.open(Log.logFile(dir, baseOffset, fileSuffix), fileAlreadyExists, initFileSize, preallocate),

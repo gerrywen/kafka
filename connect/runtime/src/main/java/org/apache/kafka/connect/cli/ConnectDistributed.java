@@ -71,6 +71,7 @@ public class ConnectDistributed {
             initInfo.logAll();
 
             String workerPropsFile = args[0];
+            // 配置文件转换为map
             Map<String, String> workerProps = !workerPropsFile.isEmpty() ?
                     Utils.propsToStringMap(Utils.loadProps(workerPropsFile)) : Collections.emptyMap();
 
@@ -88,19 +89,23 @@ public class ConnectDistributed {
 
     public Connect startConnect(Map<String, String> workerProps) {
         log.info("Scanning for plugin classes. This might take a moment ...");
+        // 插件注册
         Plugins plugins = new Plugins(workerProps);
         plugins.compareAndSwapWithDelegatingLoader();
+        // 分布式配置加载
         DistributedConfig config = new DistributedConfig(workerProps);
 
         String kafkaClusterId = ConnectUtils.lookupKafkaClusterId(config);
         log.debug("Kafka cluster ID: {}", kafkaClusterId);
 
+        // 启动 jetty server，构建 rest 服务用于管理kafka connector，
         RestServer rest = new RestServer(config);
         rest.initializeServer();
 
         URI advertisedUrl = rest.advertisedUrl();
         String workerId = advertisedUrl.getHost() + ":" + advertisedUrl.getPort();
 
+        // 使用一个 topic 来存储 connector 涉及的 offset 信息
         KafkaOffsetBackingStore offsetBackingStore = new KafkaOffsetBackingStore();
         offsetBackingStore.configure(config);
 
@@ -108,18 +113,23 @@ public class ConnectDistributed {
                 config.getString(WorkerConfig.CONNECTOR_CLIENT_POLICY_CLASS_CONFIG),
                 config, ConnectorClientConfigOverridePolicy.class);
 
+        // 具体执行工作
         Worker worker = new Worker(workerId, time, plugins, config, offsetBackingStore, connectorClientConfigOverridePolicy);
         WorkerConfigTransformer configTransformer = worker.configTransformer();
 
         Converter internalValueConverter = worker.getInternalValueConverter();
+
+        // 使用一个 topic 来存储 connector 与 task 的状态
         StatusBackingStore statusBackingStore = new KafkaStatusBackingStore(time, internalValueConverter);
         statusBackingStore.configure(config);
 
+        // 使用一个 topic 来存储 connector config 信息
         ConfigBackingStore configBackingStore = new KafkaConfigBackingStore(
                 internalValueConverter,
                 config,
                 configTransformer);
 
+        // 分布式 connector
         DistributedHerder herder = new DistributedHerder(config, time, worker,
                 kafkaClusterId, statusBackingStore, configBackingStore,
                 advertisedUrl.toString(), connectorClientConfigOverridePolicy);
@@ -127,6 +137,8 @@ public class ConnectDistributed {
         final Connect connect = new Connect(herder, rest);
         log.info("Kafka Connect distributed worker initialization took {}ms", time.hiResClockMs() - initStart);
         try {
+            // 启动 DistributedHerder 与 jetty server,
+            // DistributedHerder 将会启动 connector task
             connect.start();
         } catch (Exception e) {
             log.error("Failed to start Connect", e);
